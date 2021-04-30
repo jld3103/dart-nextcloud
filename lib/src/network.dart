@@ -14,6 +14,9 @@ class HttpHeaders {
   static String acceptHeader = 'accept';
 
   // ignore: public_member_api_docs
+  static String acceptLanguage = 'accept-language';
+
+  // ignore: public_member_api_docs
   static String contentTypeHeader = 'content-type';
 
   // ignore: public_member_api_docs
@@ -35,10 +38,38 @@ class _MimeType {
   final String value;
 }
 
+/// Different app types to register for
+enum AppType {
+  /// Will only receive Talk notifications
+  talk,
+
+  /// Will receive all notifications except Talk notifications if another Talk
+  /// app is already registered for the user
+  nextcloud,
+
+  /// Default. Same problem with notifications as the [nextcloud] type
+  unknown,
+}
+
+const _appTypeUserAgents = [
+  // Normally the version would be appended, but we can also leave it like it is
+  'Mozilla/5.0 (Android) Nextcloud-Talk v1',
+  'Mozilla/5.0 (Android) Nextcloud-android',
+  null,
+];
+
+// ignore: public_member_api_docs
+extension AppTypeUserAgent on AppType {
+  // ignore: public_member_api_docs
+  String? get userAgent => _appTypeUserAgents[index];
+}
+
 /// Http client with the correct authentication and header
 class NextCloudHttpClient extends HttpClient {
   // ignore: public_member_api_docs
   NextCloudHttpClient(
+    this._appType,
+    this._language,
     this._authString,
     this._defaultHeaders,
     this._inner,
@@ -48,8 +79,12 @@ class NextCloudHttpClient extends HttpClient {
   factory NextCloudHttpClient.defaultClient(
     String authString,
     Map<String, String>? defaultHeaders,
+    AppType? appType,
+    String? language,
   ) =>
       NextCloudHttpClient(
+        appType,
+        language,
         authString,
         defaultHeaders,
         HttpClient(),
@@ -61,10 +96,14 @@ class NextCloudHttpClient extends HttpClient {
     String username,
     String password, {
     Map<String, String>? defaultHeaders,
+    AppType? appType,
+    String? language,
   }) =>
       NextCloudHttpClient.defaultClient(
         'Basic ${base64.encode(utf8.encode('$username:$password')).trim()}',
         defaultHeaders,
+        appType,
+        language,
       );
 
   /// Constructs a new [NextCloudHttpClient] which will use the provided
@@ -72,24 +111,34 @@ class NextCloudHttpClient extends HttpClient {
   factory NextCloudHttpClient.withAppPassword(
     String appPassword, {
     Map<String, String>? defaultHeaders,
+    AppType? appType,
+    String? language,
   }) =>
       NextCloudHttpClient.defaultClient(
         'Bearer $appPassword',
         defaultHeaders,
+        appType,
+        language,
       );
 
   /// Constructs a new [NextCloudHttpClient] without login data.
   /// May only be useful for app password login setup
   factory NextCloudHttpClient.withoutLogin({
     Map<String, String>? defaultHeaders,
+    AppType? appType,
+    String? language,
   }) =>
       NextCloudHttpClient.defaultClient(
         '',
         defaultHeaders,
+        appType,
+        language,
       );
 
   final http.Client _inner;
   final String _authString;
+  final AppType? _appType;
+  final String? _language;
   final Map<String, String>? _defaultHeaders;
 
   @override
@@ -98,6 +147,9 @@ class NextCloudHttpClient extends HttpClient {
     coreHeaders[HttpHeaders.authorizationHeader] = _authString;
     coreHeaders['OCS-APIRequest'] = 'true';
     coreHeaders[HttpHeaders.acceptHeader] = ContentType.json.value;
+    if (_language != null) {
+      coreHeaders[HttpHeaders.acceptLanguage] = _language!;
+    }
 
     coreHeaders.forEach((key, value) {
       assert(
@@ -113,6 +165,13 @@ class NextCloudHttpClient extends HttpClient {
       HttpHeaders.contentTypeHeader,
       () => ContentType.json.value,
     );
+
+    if (_appType != null) {
+      request.headers.putIfAbsent(
+        HttpHeaders.userAgentHeader,
+        () => _appType!.userAgent!,
+      );
+    }
 
     _defaultHeaders?.forEach((key, value) {
       //keep in mind that specific requests can pass request level headers
