@@ -14,7 +14,7 @@ class WebDavFile {
   late String id;
 
   /// The unique id for the file within the instance
-  late String fileId;
+  String? fileId;
 
   /// Whether this is a collection resource type
   late bool isCollection = false;
