@@ -5,10 +5,12 @@ import 'package:xml/xml.dart' as xml;
 /// WebDavFile class
 class WebDavFile {
   /// Creates a new WebDavFile object with the given path
-  WebDavFile(this.path);
+  WebDavFile(String path){
+    this.path = Uri.decodeFull(path);
+  }
 
   /// The path of file
-  String path;
+  late String path;
 
   /// The fileid namespaced by the instance id, globally unique
   late String id;

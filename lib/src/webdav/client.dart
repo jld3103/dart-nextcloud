@@ -227,7 +227,8 @@ class WebDavClient {
     if (response.statusCode == 301) {
       return ls(response.headers['location']!);
     }
-    final files = treeFromWebDavXml(response.body)..removeAt(0);
+    final decodedBody = utf8.decode(response.bodyBytes);
+    final files = treeFromWebDavXml(decodedBody)..removeAt(0);
     for (final file in files) {
       file.path = await _removeFilesPath(file.path);
     }
